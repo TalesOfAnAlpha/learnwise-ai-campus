@@ -44,14 +44,19 @@ const TestMonitoringAudio: React.FC<TestMonitoringAudioProps> = ({
       ];
       
       detectionInterval = setInterval(() => {
-        // Only trigger detections occasionally for demo (15% chance)
-        if (Math.random() < 0.15) {
+        // Increased chance (40% instead of 15%)
+        if (Math.random() < 0.4) {
           const randomDetection = possibleDetections[
             Math.floor(Math.random() * possibleDetections.length)
           ];
           onDetection(`Audio: ${randomDetection}`);
         }
-      }, 20000); // Check every 20 seconds
+      }, 6000); // Reduced from 20s to 6s
+      
+      // Generate an immediate detection when audio starts
+      setTimeout(() => {
+        onDetection("Audio: Initial audio monitoring activated");
+      }, 3000);
     }
     
     return () => {
@@ -97,8 +102,8 @@ const TestMonitoringAudio: React.FC<TestMonitoringAudioProps> = ({
         const normalizedLevel = Math.min(100, Math.round((average / 255) * 100));
         setAudioLevel(normalizedLevel);
         
-        // Check for unusual audio levels
-        if (normalizedLevel > 70) {
+        // Check for unusual audio levels - lower threshold to detect more often
+        if (normalizedLevel > 50) {
           onDetection("Audio: High volume detected");
         }
         

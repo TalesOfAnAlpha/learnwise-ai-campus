@@ -43,14 +43,14 @@ const TestMonitoringCamera: React.FC<TestMonitoringCameraProps> = ({
       ];
       
       detectionInterval = setInterval(() => {
-        // Only trigger detections occasionally for demo purposes (20% chance)
-        if (Math.random() < 0.2) {
+        // Increased chance of detection (50% instead of 20%)
+        if (Math.random() < 0.5) {
           const randomDetection = possibleDetections[
             Math.floor(Math.random() * possibleDetections.length)
           ];
           onDetection(`Camera: ${randomDetection}`);
         }
-      }, 15000); // Check every 15 seconds
+      }, 5000); // Reduced interval from 15s to 5s for more frequent checks
     }
     
     return () => {
@@ -73,6 +73,13 @@ const TestMonitoringCamera: React.FC<TestMonitoringCameraProps> = ({
       }
       
       setError(null);
+
+      // Generate an immediate detection when camera starts
+      setTimeout(() => {
+        if (isActive) {
+          onDetection("Camera: Initial monitoring check complete");
+        }
+      }, 2000);
     } catch (err) {
       console.error("Error accessing camera:", err);
       setError("Could not access camera. Please check permissions.");
