@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Search, Upload } from 'lucide-react';
+import { Search, Upload, Eye } from 'lucide-react';
 import UserMenu from './UserMenu';
 import Logo from './Logo';
 
@@ -30,6 +30,10 @@ const Navbar: React.FC = () => {
             <Link to="/course-upload" className="text-gray-600 hover:text-brand-600 font-medium transition-colors flex items-center">
               <Upload className="h-4 w-4 mr-1" />
               Teach
+            </Link>
+            <Link to="/test-monitoring" className="text-gray-600 hover:text-brand-600 font-medium transition-colors flex items-center">
+              <Eye className="h-4 w-4 mr-1" />
+              Test Monitoring
             </Link>
           </div>
         </div>

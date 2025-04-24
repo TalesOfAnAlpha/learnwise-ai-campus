@@ -12,6 +12,7 @@ import Courses from "./pages/Courses";
 import Categories from "./pages/Categories";
 import About from "./pages/About";
 import CourseUpload from "./pages/CourseUpload";
+import TestMonitoring from "./pages/TestMonitoring";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/categories" element={<Categories />} />
           <Route path="/about" element={<About />} />
           <Route path="/course-upload" element={<CourseUpload />} />
+          <Route path="/test-monitoring" element={<TestMonitoring />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
