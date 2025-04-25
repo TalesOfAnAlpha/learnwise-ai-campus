@@ -4,54 +4,120 @@ import CourseCard from './CourseCard';
 import { CourseFilters } from '../pages/Courses';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/types/database';
+import { useToast } from "@/hooks/use-toast";
 
-type Course = Database['public']['Tables']['student_courses']['Row'];
+// Use sample course data since the database table doesn't exist yet
+const sampleCourses = [
+  {
+    id: '1',
+    title: 'Machine Learning Fundamentals with Python',
+    instructor_id: 'Dr. Sarah Johnson',
+    thumbnail_url: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    category: 'Data Science',
+    rating: 4.8,
+    reviews: 342,
+    price: 59.99,
+    duration: '12 hours',
+    level: 'Intermediate',
+  },
+  {
+    id: '2',
+    title: 'Full-Stack Web Development with React and Node.js',
+    instructor_id: 'Mark Wilson',
+    thumbnail_url: 'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    category: 'Web Development',
+    rating: 4.7,
+    reviews: 518,
+    price: 69.99,
+    duration: '24 hours',
+    level: 'Advanced',
+  },
+  {
+    id: '3',
+    title: 'Digital Marketing Masterclass: Complete Marketing Course',
+    instructor_id: 'Jennifer Adams',
+    thumbnail_url: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    category: 'Marketing',
+    rating: 4.5,
+    reviews: 275,
+    price: 49.99,
+    duration: '15 hours',
+    level: 'Beginner',
+  },
+  {
+    id: '4',
+    title: 'UI/UX Design: Create Modern Web Experiences',
+    instructor_id: 'David Chen',
+    thumbnail_url: 'https://images.unsplash.com/photo-1522542550221-31fd19575a2d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    category: 'Design',
+    rating: 4.9,
+    reviews: 412,
+    price: 79.99,
+    duration: '18 hours',
+    level: 'Intermediate',
+  },
+];
 
 interface CourseGridProps {
   filters: CourseFilters;
 }
 
 const CourseGrid: React.FC<CourseGridProps> = ({ filters }) => {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const query = supabase
-          .from('student_courses')
-          .select('*');
-
+        setLoading(true);
+        
+        // Filter the sample courses based on the filters
+        let filteredCourses = [...sampleCourses];
+        
         if (filters.category !== 'all') {
-          query.eq('category', filters.category);
+          filteredCourses = filteredCourses.filter(
+            course => course.category.toLowerCase() === filters.category.toLowerCase()
+          );
         }
         
         if (filters.level !== 'all') {
-          query.eq('level', filters.level.toLowerCase());
+          filteredCourses = filteredCourses.filter(
+            course => course.level.toLowerCase() === filters.level.toLowerCase()
+          );
         }
-
+        
         if (filters.price[1] < 1000) {
-          query.lte('price', filters.price[1]);
+          filteredCourses = filteredCourses.filter(
+            course => course.price <= filters.price[1]
+          );
         }
-        query.gte('price', filters.price[0]);
-
+        
+        filteredCourses = filteredCourses.filter(
+          course => course.price >= filters.price[0]
+        );
+        
         if (filters.rating > 0) {
-          query.gte('rating', filters.rating);
+          filteredCourses = filteredCourses.filter(
+            course => course.rating >= filters.rating
+          );
         }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-        setCourses(data || []);
+        
+        setCourses(filteredCourses);
       } catch (error) {
         console.error('Error fetching courses:', error);
+        toast({
+          title: "Error fetching courses",
+          description: "Please try again later",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchCourses();
-  }, [filters]);
+  }, [filters, toast]);
 
   if (loading) {
     return (
