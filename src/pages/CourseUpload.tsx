@@ -45,23 +45,25 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-const categories = [
-  'Web Development',
-  'Data Science',
-  'Mobile Development',
-  'Cybersecurity',
-  'UX/UI Design',
-  'Business & Marketing',
-  'Artificial Intelligence',
-  'Cloud Computing',
-  'Game Development',
-  'Photography',
-  'Music & Audio',
-  'Personal Development',
-];
-
-const levels = ['Beginner', 'Intermediate', 'Advanced'];
+type Database = {
+  public: {
+    Tables: {
+      student_courses: {
+        Insert: {
+          title: string;
+          description: string;
+          instructor_id: string;
+          category: string;
+          level: string;
+          price: number;
+          duration: string;
+          thumbnail_url?: string | null;
+          is_student_created: boolean;
+        }
+      }
+    }
+  }
+};
 
 const CourseUpload: React.FC = () => {
   const { toast } = useToast();
@@ -114,19 +116,21 @@ const CourseUpload: React.FC = () => {
         thumbnailUrl = publicUrl;
       }
 
+      const courseData: Database['public']['Tables']['student_courses']['Insert'] = {
+        title: values.title,
+        description: values.description,
+        instructor_id: user.id,
+        category: values.category.toLowerCase(),
+        level: values.level.toLowerCase(),
+        price: parseFloat(values.price),
+        duration: values.duration,
+        thumbnail_url: thumbnailUrl,
+        is_student_created: true,
+      };
+
       const { error: courseError } = await supabase
         .from('student_courses')
-        .insert({
-          title: values.title,
-          description: values.description,
-          instructor_id: user.id,
-          category: values.category.toLowerCase(),
-          level: values.level.toLowerCase(),
-          price: parseFloat(values.price),
-          duration: values.duration,
-          thumbnail_url: thumbnailUrl,
-          is_student_created: true,
-        });
+        .insert(courseData);
 
       if (courseError) throw courseError;
 

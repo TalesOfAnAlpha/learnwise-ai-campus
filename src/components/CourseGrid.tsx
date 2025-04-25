@@ -1,22 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import CourseCard from './CourseCard';
 import { CourseFilters } from '../pages/Courses';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/types/database';
 
-interface Course {
-  id: string;
-  title: string;
-  instructor_id: string;
-  category: string;
-  level: string;
-  price: number;
-  rating: number;
-  reviews: number;
-  duration: string;
-  thumbnail_url: string;
-  is_student_created: boolean;
-}
+type Course = Database['public']['Tables']['student_courses']['Row'];
 
 interface CourseGridProps {
   filters: CourseFilters;
@@ -87,7 +75,7 @@ const CourseGrid: React.FC<CourseGridProps> = ({ filters }) => {
           key={course.id}
           id={course.id}
           title={course.title}
-          instructor={course.instructor_id} // You might want to fetch instructor details separately
+          instructor={course.instructor_id}
           image={course.thumbnail_url || 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=800&q=80'}
           category={course.category}
           rating={course.rating}
