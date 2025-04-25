@@ -19,6 +19,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card } from '@/components/ui/card';
 import { Upload, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useNavigate } from 'react-router-dom';
 
 const formSchema = z.object({
   title: z.string().min(10, {
@@ -35,6 +37,9 @@ const formSchema = z.object({
   }),
   price: z.string().refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
     message: 'Price must be a valid number.',
+  }),
+  duration: z.string().min(1, {
+    message: 'Please specify the course duration.',
   }),
   coverImage: z.instanceof(File).optional(),
 });
@@ -60,6 +65,7 @@ const levels = ['Beginner', 'Intermediate', 'Advanced'];
 
 const CourseUpload: React.FC = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
   
   const form = useForm<FormValues>({
@@ -70,18 +76,75 @@ const CourseUpload: React.FC = () => {
       category: '',
       level: '',
       price: '',
+      duration: '',
     },
   });
 
-  const onSubmit = (values: FormValues) => {
-    // In a real application, this would send data to a backend API
-    console.log('Form submitted: ', values);
-    
-    toast({
-      title: 'Course submitted for review',
-      description: 'We will notify you once your course is approved.',
-      duration: 5000,
-    });
+  const onSubmit = async (values: FormValues) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: 'Authentication required',
+          description: 'Please log in to create a course.',
+          variant: 'destructive',
+        });
+        navigate('/login');
+        return;
+      }
+
+      let thumbnailUrl = null;
+      if (values.coverImage) {
+        const fileExt = values.coverImage.name.split('.').pop();
+        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('course-thumbnails')
+          .upload(filePath, values.coverImage);
+
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('course-thumbnails')
+          .getPublicUrl(filePath);
+          
+        thumbnailUrl = publicUrl;
+      }
+
+      const { error: courseError } = await supabase
+        .from('student_courses')
+        .insert({
+          title: values.title,
+          description: values.description,
+          instructor_id: user.id,
+          category: values.category.toLowerCase(),
+          level: values.level.toLowerCase(),
+          price: parseFloat(values.price),
+          duration: values.duration,
+          thumbnail_url: thumbnailUrl,
+          is_student_created: true,
+        });
+
+      if (courseError) throw courseError;
+
+      toast({
+        title: 'Course created successfully',
+        description: 'Your course has been submitted for review.',
+        duration: 5000,
+      });
+
+      navigate('/courses');
+    } catch (error) {
+      console.error('Error creating course:', error);
+      toast({
+        title: 'Error creating course',
+        description: 'There was an error creating your course. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
