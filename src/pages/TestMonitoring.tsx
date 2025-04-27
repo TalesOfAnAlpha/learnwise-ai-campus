@@ -4,18 +4,77 @@ import Layout from '../components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Mic, MicOff, Video, VideoOff, Eye } from 'lucide-react';
+import { Camera, Mic, MicOff, Video, VideoOff, Eye, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import TestMonitoringCamera from '../components/TestMonitoringCamera';
 import TestMonitoringAudio from '../components/TestMonitoringAudio';
 import AIMonitoringSummary from '../components/AIMonitoringSummary';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 const TestMonitoring: React.FC = () => {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [detections, setDetections] = useState<string[]>([]);
+  const [tabSwitchAttempts, setTabSwitchAttempts] = useState<string[]>([]);
+  const [isWarningDialogOpen, setIsWarningDialogOpen] = useState(false);
+  const originalTitle = useRef(document.title);
   const { toast } = useToast();
+
+  // Monitor tab focus/visibility
+  useEffect(() => {
+    if (isMonitoring) {
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') {
+          const timestamp = new Date().toISOString();
+          setTabSwitchAttempts(prev => [...prev, timestamp]);
+          setDetections(prev => [...prev, `Tab switch detected at ${new Date().toLocaleTimeString()}`]);
+          setIsWarningDialogOpen(true);
+          
+          // Flash the title to get attention
+          let titleFlash = setInterval(() => {
+            document.title = document.title === "⚠️ RETURN TO TEST" 
+              ? "⚠️ MONITORING ACTIVE" 
+              : "⚠️ RETURN TO TEST";
+          }, 1000);
+          
+          // Clear interval when tab is visible again
+          const clearTitleFlash = () => {
+            if (document.visibilityState === 'visible') {
+              clearInterval(titleFlash);
+              document.title = originalTitle.current;
+              document.removeEventListener('visibilitychange', clearTitleFlash);
+            }
+          };
+          
+          document.addEventListener('visibilitychange', clearTitleFlash);
+          
+          toast({
+            title: "Warning",
+            description: "Tab switching detected! This has been recorded.",
+            variant: "destructive",
+          });
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Warn before closing/refreshing
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.title = originalTitle.current;
+      };
+    }
+  }, [isMonitoring, toast]);
 
   const startMonitoring = () => {
     if (!cameraEnabled && !audioEnabled) {
@@ -29,6 +88,7 @@ const TestMonitoring: React.FC = () => {
     
     setIsMonitoring(true);
     setDetections([]);
+    setTabSwitchAttempts([]);
     toast({
       title: "Monitoring Started",
       description: "AI test monitoring is now active"
@@ -123,13 +183,82 @@ const TestMonitoring: React.FC = () => {
                 onDetection={handleDetection} 
               />
             )}
+            
+            {tabSwitchAttempts.length > 0 && (
+              <Card className="mb-6 border-red-200 bg-red-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-red-700">
+                    <AlertTriangle className="h-5 w-5 mr-2" />
+                    Tab Switch Attempts
+                  </CardTitle>
+                  <CardDescription className="text-red-600">
+                    {tabSwitchAttempts.length} attempt{tabSwitchAttempts.length !== 1 ? 's' : ''} to leave the test page detected
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-1 text-red-700">
+                    {tabSwitchAttempts.map((timestamp, index) => (
+                      <li key={index} className="flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Tab switch at {new Date(timestamp).toLocaleTimeString()}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div>
-            <AIMonitoringSummary detections={detections} isActive={isMonitoring} />
+            <AIMonitoringSummary 
+              detections={[...detections, ...tabSwitchAttempts.map(time => 
+                `Tab switch at ${new Date(time).toLocaleTimeString()}`
+              )]} 
+              isActive={isMonitoring} 
+            />
           </div>
         </div>
       </div>
+      
+      {/* Warning Dialog for Tab Switching */}
+      <Dialog 
+        open={isWarningDialogOpen} 
+        onOpenChange={(open) => {
+          // Only allow closing if we're back in the tab
+          if (document.visibilityState === 'visible') {
+            setIsWarningDialogOpen(open);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-red-600">
+              <AlertTriangle className="h-5 w-5 mr-2" /> 
+              Warning: Tab Switch Detected
+            </DialogTitle>
+            <DialogDescription className="text-red-600">
+              Leaving the test tab is not allowed during monitoring. This activity has been recorded.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-red-50 p-4 rounded-md">
+            <p className="text-sm text-red-700">
+              Multiple instances of tab switching may result in test invalidation. 
+              Please remain on this tab until your test is complete.
+            </p>
+            <p className="mt-2 font-medium text-red-600">
+              Recorded tab switches: {tabSwitchAttempts.length}
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <Button 
+              className="bg-red-600 hover:bg-red-700 mt-2"
+              onClick={() => setIsWarningDialogOpen(false)}
+            >
+              I Understand
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

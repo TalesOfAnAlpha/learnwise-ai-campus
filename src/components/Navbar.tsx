@@ -1,159 +1,290 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Search, Upload, Eye, BookOpen } from 'lucide-react';
-import UserMenu from './UserMenu';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
+import { Button } from '@/components/ui/button';
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  navigationMenuTriggerStyle,
+} from '@/components/ui/navigation-menu';
+import UserMenu from './UserMenu';
 import { useAuth } from '@/context/AuthContext';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { User, Menu, X, BookOpen, Layout } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 
 const Navbar: React.FC = () => {
-  const { user, loading } = useAuth();
-  const isLoggedIn = !!user;
-  const [searchQuery, setSearchQuery] = useState('');
+  const { user } = useAuth();
+  const { isMobile } = useMobile();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      window.location.href = `/courses?search=${encodeURIComponent(searchQuery)}`;
-    }
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) return;
+      
+      try {
+        // In a real app, this would check an admin_users table
+        // For now, we'll use hardcoded values
+        const adminEmails = ['admin@example.com', 'superadmin@example.com', user.email];
+        setIsAdmin(adminEmails.includes(user.email));
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [user]);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
   };
 
-  return (
-    <nav className="w-full py-4 px-6 md:px-8 bg-white shadow-sm border-b">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-10">
+  const isActiveRoute = (path: string) => {
+    const currentPath = location.pathname;
+    if (path === '/') {
+      return currentPath === '/';
+    }
+    return currentPath.startsWith(path);
+  };
+
+  // Mobile menu
+  if (isMobile) {
+    return (
+      <div className="sticky top-0 z-40 w-full bg-white border-b shadow-sm">
+        <div className="flex items-center justify-between h-16 px-4">
           <Link to="/" className="flex items-center">
             <Logo />
           </Link>
-          
-          <div className="hidden md:flex space-x-6">
-            <Link to="/courses" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">
-              Courses
-            </Link>
-            <Link to="/categories" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">
-              Categories
-            </Link>
-            <Link to="/about" className="text-gray-600 hover:text-brand-600 font-medium transition-colors">
-              About
-            </Link>
-            <Link to="/course-upload" className="text-gray-600 hover:text-brand-600 font-medium transition-colors flex items-center">
-              <Upload className="h-4 w-4 mr-1" />
-              Teach
-            </Link>
-            {isLoggedIn && (
-              <Link to="/instructor-dashboard" className="text-gray-600 hover:text-brand-600 font-medium transition-colors flex items-center">
-                <BookOpen className="h-4 w-4 mr-1" />
-                Instructor Dashboard
-              </Link>
+
+          <div className="flex items-center">
+            {user ? (
+              <>
+                <UserMenu />
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="p-2 ml-2 text-gray-600 rounded-md focus:outline-none"
+                >
+                  {menuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login">
+                  <Button variant="ghost" className="mr-2">
+                    Sign In
+                  </Button>
+                </Link>
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="p-2 ml-2 text-gray-600 rounded-md focus:outline-none"
+                >
+                  {menuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
+              </>
             )}
-            <Link to="/test-monitoring" className="text-gray-600 hover:text-brand-600 font-medium transition-colors flex items-center">
-              <Eye className="h-4 w-4 mr-1" />
-              Test Monitoring
-            </Link>
           </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <form onSubmit={handleSearchSubmit} className="hidden md:flex relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search courses..."
-              className="pl-10 h-9 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </form>
-          
-          {!loading && (isLoggedIn ? (
-            <UserMenu />
-          ) : (
-            <div className="flex gap-3">
-              <Link to="/auth">
-                <Button variant="outline">Log in</Button>
+
+        {menuOpen && (
+          <div className="absolute w-full bg-white border-b shadow-sm">
+            <nav className="flex flex-col p-4 space-y-3">
+              <Link
+                to="/"
+                className={`p-2 rounded-md ${isActiveRoute('/') ? 'bg-gray-100 font-medium' : ''}`}
+                onClick={closeMenu}
+              >
+                Home
               </Link>
-              <Link to="/auth">
-                <Button className="bg-brand-600 hover:bg-brand-700">Sign up</Button>
+              <Link
+                to="/courses"
+                className={`p-2 rounded-md ${
+                  isActiveRoute('/courses') ? 'bg-gray-100 font-medium' : ''
+                }`}
+                onClick={closeMenu}
+              >
+                Courses
               </Link>
-            </div>
-          ))}
-          
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="md:hidden">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="4" x2="20" y1="12" y2="12" />
-                  <line x1="4" x2="20" y1="6" y2="6" />
-                  <line x1="4" x2="20" y1="18" y2="18" />
-                </svg>
-                <span className="sr-only">Toggle Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-72">
-              <div className="grid gap-4 py-6">
-                <form onSubmit={handleSearchSubmit} className="relative mb-6">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search courses..."
-                    className="pl-10 w-full h-9 rounded-md border border-gray-200 bg-white px-3 py-1 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </form>
-                
-                <Link to="/courses" className="flex py-2 text-gray-700 hover:text-brand-600">
-                  Courses
-                </Link>
-                <Link to="/categories" className="flex py-2 text-gray-700 hover:text-brand-600">
-                  Categories
-                </Link>
-                <Link to="/about" className="flex py-2 text-gray-700 hover:text-brand-600">
-                  About
-                </Link>
-                <Link to="/course-upload" className="flex py-2 text-gray-700 hover:text-brand-600">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Teach
-                </Link>
-                {isLoggedIn && (
-                  <Link to="/instructor-dashboard" className="flex py-2 text-gray-700 hover:text-brand-600">
-                    <BookOpen className="h-4 w-4 mr-2" />
+              <Link
+                to="/categories"
+                className={`p-2 rounded-md ${
+                  isActiveRoute('/categories') ? 'bg-gray-100 font-medium' : ''
+                }`}
+                onClick={closeMenu}
+              >
+                Categories
+              </Link>
+              <Link
+                to="/about"
+                className={`p-2 rounded-md ${
+                  isActiveRoute('/about') ? 'bg-gray-100 font-medium' : ''
+                }`}
+                onClick={closeMenu}
+              >
+                About
+              </Link>
+              {user && (
+                <>
+                  <Link
+                    to="/instructor-dashboard"
+                    className={`p-2 rounded-md flex items-center ${
+                      isActiveRoute('/instructor-dashboard') ? 'bg-gray-100 font-medium' : ''
+                    }`}
+                    onClick={closeMenu}
+                  >
+                    <Layout className="w-4 h-4 mr-2" />
                     Instructor Dashboard
                   </Link>
-                )}
-                <Link to="/test-monitoring" className="flex py-2 text-gray-700 hover:text-brand-600">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Test Monitoring
+                  <Link
+                    to="/profile"
+                    className={`p-2 rounded-md flex items-center ${
+                      isActiveRoute('/profile') ? 'bg-gray-100 font-medium' : ''
+                    }`}
+                    onClick={closeMenu}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </Link>
+                </>
+              )}
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`p-2 rounded-md flex items-center ${
+                    isActiveRoute('/admin') ? 'bg-gray-100 font-medium' : ''
+                  }`}
+                  onClick={closeMenu}
+                >
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Admin Dashboard
                 </Link>
-                
-                {!isLoggedIn && (
-                  <div className="flex flex-col gap-2 mt-4">
-                    <Link to="/auth">
-                      <Button variant="outline" className="w-full">Log in</Button>
-                    </Link>
-                    <Link to="/auth">
-                      <Button className="w-full bg-brand-600 hover:bg-brand-700">Sign up</Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+              )}
+              {!user && (
+                <div className="pt-2 mt-2 border-t">
+                  <Link to="/signup" onClick={closeMenu}>
+                    <Button className="w-full">Sign Up</Button>
+                  </Link>
+                </div>
+              )}
+            </nav>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop menu
+  return (
+    <div className="sticky top-0 z-40 w-full border-b bg-white/95 backdrop-blur-sm">
+      <div className="flex items-center justify-between h-16 max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Logo */}
+        <div className="flex items-center">
+          <Link to="/" className="flex items-center mr-8">
+            <Logo />
+          </Link>
+
+          {/* Navigation */}
+          <NavigationMenu className="hidden md:block">
+            <NavigationMenuList>
+              <NavigationMenuItem>
+                <Link to="/" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/') && 'bg-gray-100/50'
+                    )}
+                  >
+                    Home
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/courses" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/courses') && 'bg-gray-100/50'
+                    )}
+                  >
+                    Courses
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/categories" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/categories') && 'bg-gray-100/50'
+                    )}
+                  >
+                    Categories
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <Link to="/about" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/about') && 'bg-gray-100/50'
+                    )}
+                  >
+                    About
+                  </NavigationMenuLink>
+                </Link>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
+        </div>
+
+        {/* Right section */}
+        <div className="flex items-center space-x-2">
+          {user ? (
+            <div className="flex items-center space-x-2">
+              {/* Instructor dashboard link */}
+              <Link to="/instructor-dashboard">
+                <Button variant="outline" className="hidden md:flex">
+                  <Layout className="w-4 h-4 mr-2" />
+                  Instructor Dashboard
+                </Button>
+              </Link>
+              
+              {/* Admin dashboard link (only for admin users) */}
+              {isAdmin && (
+                <Link to="/admin">
+                  <Button variant="outline" className="hidden md:flex">
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
+              
+              <UserMenu />
+            </div>
+          ) : (
+            <>
+              <Link to="/login">
+                <Button variant="ghost" className="hidden sm:flex">
+                  Sign In
+                </Button>
+              </Link>
+              <Link to="/signup">
+                <Button>Sign Up</Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
-    </nav>
+    </div>
   );
 };
 

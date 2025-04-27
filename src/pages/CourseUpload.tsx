@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useToast } from '@/hooks/use-toast';
@@ -83,11 +82,19 @@ const CourseUpload: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+      } else {
+        // Redirect to login if not authenticated
+        toast({
+          title: 'Authentication required',
+          description: 'Please log in to create a course.',
+          variant: 'destructive',
+        });
+        navigate('/login');
       }
     };
     
     fetchUserID();
-  }, []);
+  }, [navigate, toast]);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -119,14 +126,17 @@ const CourseUpload: React.FC = () => {
       let thumbnailUrl = null;
       if (values.coverImage) {
         const fileExt = values.coverImage.name.split('.').pop();
-        const fileName = `${userId}-${Date.now()}.${fileExt}`;
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${userId}/${fileName}`;
         
         const { error: uploadError, data } = await supabase.storage
           .from('course-thumbnails')
           .upload(filePath, values.coverImage);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Cover image upload error:', uploadError);
+          throw new Error(`Cover image upload failed: ${uploadError.message}`);
+        }
         
         const { data: { publicUrl } } = supabase.storage
           .from('course-thumbnails')
@@ -139,14 +149,20 @@ const CourseUpload: React.FC = () => {
       let videoUrl = null;
       if (values.courseVideo) {
         const fileExt = values.courseVideo.name.split('.').pop();
-        const fileName = `${userId}-${Date.now()}.${fileExt}`;
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${userId}/${fileName}`;
         
         const { error: uploadError } = await supabase.storage
           .from('course-videos')
-          .upload(filePath, values.courseVideo);
+          .upload(filePath, values.courseVideo, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Video upload error:', uploadError);
+          throw new Error(`Video upload failed: ${uploadError.message}`);
+        }
         
         const { data: { publicUrl } } = supabase.storage
           .from('course-videos')
@@ -174,7 +190,10 @@ const CourseUpload: React.FC = () => {
         .select()
         .single();
 
-      if (courseError) throw courseError;
+      if (courseError) {
+        console.error('Course creation error:', courseError);
+        throw new Error(`Course creation failed: ${courseError.message}`);
+      }
       
       // Add initial course content if video was uploaded
       if (videoUrl && course) {
@@ -192,7 +211,11 @@ const CourseUpload: React.FC = () => {
           
         if (contentError) {
           console.error('Error adding course content:', contentError);
-          // Continue anyway - we'll treat content as optional
+          toast({
+            title: 'Warning',
+            description: 'Course created but video content could not be added.',
+            variant: 'default',
+          });
         }
       }
 
@@ -202,12 +225,12 @@ const CourseUpload: React.FC = () => {
         duration: 5000,
       });
 
-      navigate('/courses');
-    } catch (error) {
+      navigate('/instructor-dashboard');
+    } catch (error: any) {
       console.error('Error creating course:', error);
       toast({
         title: 'Error creating course',
-        description: 'There was an error creating your course. Please try again.',
+        description: error.message || 'There was an error creating your course. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -218,6 +241,16 @@ const CourseUpload: React.FC = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'File too large',
+          description: 'Image must be less than 5MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       form.setValue('coverImage', file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -230,8 +263,23 @@ const CourseUpload: React.FC = () => {
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file size (max 100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        toast({
+          title: 'File too large',
+          description: 'Video must be less than 100MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       form.setValue('courseVideo', file);
       setVideoFileName(file.name);
+      
+      toast({
+        title: 'Video selected',
+        description: `${file.name} (${(file.size / (1024 * 1024)).toFixed(2)}MB)`,
+      });
     }
   };
 

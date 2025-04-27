@@ -17,7 +17,9 @@ import CourseUpload from "./pages/CourseUpload";
 import TestMonitoring from "./pages/TestMonitoring";
 import Profile from "./pages/Profile";
 import InstructorDashboard from "./pages/InstructorDashboard";
-import ChatWidget from "./components/ChatWidget";
+import ChatGPTWidget from "./components/ChatGPTWidget";
+import CourseDetail from "./pages/CourseDetail";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/courses" element={<Courses />} />
+            <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/about" element={<About />} />
             <Route path="/course-upload" element={<CourseUpload />} />
@@ -40,9 +43,10 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/instructor-dashboard" element={<InstructorDashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-          <ChatWidget />
+          <ChatGPTWidget />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
