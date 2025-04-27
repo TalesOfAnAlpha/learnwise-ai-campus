@@ -96,14 +96,37 @@ const EnrolledCourses: React.FC = () => {
                 ? Math.round((completedContent || 0) / totalContent * 100)
                 : 0;
               
+              // Fix the course property - it comes as an array from the join but should be an object
+              const courseData = Array.isArray(enrollment.course) && enrollment.course.length > 0 
+                ? enrollment.course[0] 
+                : {
+                    id: '',
+                    title: '',
+                    description: '',
+                    thumbnail_url: null,
+                    level: '',
+                    duration: ''
+                  };
+              
               return {
                 ...enrollment,
+                course: courseData,
                 progress,
               };
             } catch (e) {
               console.error('Error fetching progress:', e);
               return {
                 ...enrollment,
+                course: Array.isArray(enrollment.course) && enrollment.course.length > 0 
+                  ? enrollment.course[0] 
+                  : {
+                      id: '',
+                      title: '',
+                      description: '',
+                      thumbnail_url: null,
+                      level: '',
+                      duration: ''
+                    },
                 progress: 0,
               };
             }
