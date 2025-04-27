@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card } from '@/components/ui/card';
-import { Upload, Sparkles } from 'lucide-react';
+import { Upload, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import type { Database } from '@/types/database';
@@ -36,6 +36,10 @@ const categories = [
   'Photography',
   'Music & Audio',
   'Personal Development',
+  'Programming',
+  'Design',
+  'Marketing',
+  'Blockchain',
 ];
 
 const levels = ['Beginner', 'Intermediate', 'Advanced'];
@@ -60,6 +64,7 @@ const formSchema = z.object({
     message: 'Please specify the course duration.',
   }),
   coverImage: z.instanceof(File).optional(),
+  courseVideo: z.instanceof(File).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -69,6 +74,20 @@ const CourseUpload: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const [videoFileName, setVideoFileName] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchUserID = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      }
+    };
+    
+    fetchUserID();
+  }, []);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -84,11 +103,9 @@ const CourseUpload: React.FC = () => {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
+      setIsSubmitting(true);
+      
+      if (!userId) {
         toast({
           title: 'Authentication required',
           description: 'Please log in to create a course.',
@@ -98,10 +115,12 @@ const CourseUpload: React.FC = () => {
         return;
       }
 
+      // Upload cover image if provided
       let thumbnailUrl = null;
       if (values.coverImage) {
         const fileExt = values.coverImage.name.split('.').pop();
-        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        const fileName = `${userId}-${Date.now()}.${fileExt}`;
+        const filePath = `${userId}/${fileName}`;
         
         const { error: uploadError, data } = await supabase.storage
           .from('course-thumbnails')
@@ -115,28 +134,71 @@ const CourseUpload: React.FC = () => {
           
         thumbnailUrl = publicUrl;
       }
+      
+      // Upload course video if provided
+      let videoUrl = null;
+      if (values.courseVideo) {
+        const fileExt = values.courseVideo.name.split('.').pop();
+        const fileName = `${userId}-${Date.now()}.${fileExt}`;
+        const filePath = `${userId}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('course-videos')
+          .upload(filePath, values.courseVideo);
 
-      const courseData: CourseInsert = {
-        title: values.title,
-        description: values.description,
-        instructor_id: user.id,
-        category: values.category.toLowerCase(),
-        level: values.level.toLowerCase(),
-        price: parseFloat(values.price),
-        duration: values.duration,
-        thumbnail_url: thumbnailUrl,
-        is_student_created: true,
-      };
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('course-videos')
+          .getPublicUrl(filePath);
+          
+        videoUrl = publicUrl;
+      }
 
-      const { error: courseError } = await supabase
-        .from('student_courses')
-        .insert(courseData);
+      // Insert course into database
+      const { data: course, error: courseError } = await supabase
+        .from('courses')
+        .insert({
+          title: values.title,
+          description: values.description,
+          instructor_id: userId,
+          category: values.category.toLowerCase(),
+          level: values.level.toLowerCase(),
+          price: parseFloat(values.price),
+          duration: values.duration,
+          thumbnail_url: thumbnailUrl,
+          rating: 0,
+          reviews: 0,
+          is_student_created: true,
+        })
+        .select()
+        .single();
 
       if (courseError) throw courseError;
+      
+      // Add initial course content if video was uploaded
+      if (videoUrl && course) {
+        const { error: contentError } = await supabase
+          .from('course_content')
+          .insert({
+            course_id: course.id,
+            title: 'Introduction',
+            content_type: 'video',
+            content: 'Introduction to the course',
+            video_url: videoUrl,
+            duration: '10 minutes',
+            order_index: 1
+          });
+          
+        if (contentError) {
+          console.error('Error adding course content:', contentError);
+          // Continue anyway - we'll treat content as optional
+        }
+      }
 
       toast({
         title: 'Course created successfully',
-        description: 'Your course has been submitted for review.',
+        description: 'Your course has been published and is now available.',
         duration: 5000,
       });
 
@@ -148,6 +210,8 @@ const CourseUpload: React.FC = () => {
         description: 'There was an error creating your course. Please try again.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -160,6 +224,14 @@ const CourseUpload: React.FC = () => {
         setCoverImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+  
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      form.setValue('courseVideo', file);
+      setVideoFileName(file.name);
     }
   };
 
@@ -239,6 +311,30 @@ const CourseUpload: React.FC = () => {
                       <label htmlFor="courseImage">
                         <Button type="button" variant="outline" className="mt-2">
                           {coverImagePreview ? 'Change Image' : 'Select Image'}
+                        </Button>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-1.5">
+                    <FormLabel>Course Video</FormLabel>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center">
+                      <div className="flex flex-col items-center justify-center py-4">
+                        <Upload className="h-10 w-10 text-gray-400 mb-2" />
+                        <p className="text-sm text-gray-500">
+                          {videoFileName ? `Selected: ${videoFileName}` : 'Upload your course intro video'}
+                        </p>
+                      </div>
+                      <Input 
+                        id="courseVideo" 
+                        type="file" 
+                        accept="video/mp4,video/webm,video/quicktime"
+                        className="hidden" 
+                        onChange={handleVideoChange}
+                      />
+                      <label htmlFor="courseVideo">
+                        <Button type="button" variant="outline" className="mt-2">
+                          {videoFileName ? 'Change Video' : 'Select Video'}
                         </Button>
                       </label>
                     </div>
@@ -350,8 +446,19 @@ const CourseUpload: React.FC = () => {
               </div>
 
               <div className="pt-4 border-t flex justify-end">
-                <Button type="submit" className="bg-brand-600 hover:bg-brand-700">
-                  Submit Course for Review
+                <Button 
+                  type="submit" 
+                  className="bg-brand-600 hover:bg-brand-700" 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Course'
+                  )}
                 </Button>
               </div>
             </form>

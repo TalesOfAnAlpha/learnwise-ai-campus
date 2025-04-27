@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { useLocation } from 'react-router-dom';
 
 export interface CourseFilters {
   category: string;
@@ -17,7 +18,15 @@ export interface CourseFilters {
   aiRecommended: boolean;
 }
 
+// Helper function to get query params
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
+
 const Courses: React.FC = () => {
+  const query = useQuery();
+  const searchQuery = query.get('search') || '';
+  
   const [filters, setFilters] = useState<CourseFilters>({
     category: 'all',
     level: 'all',
@@ -86,8 +95,14 @@ const Courses: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 md:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">All Courses</h1>
-            <p className="mt-2 text-gray-600">Expand your knowledge with our curated courses</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {searchQuery ? `Search Results for "${searchQuery}"` : 'All Courses'}
+            </h1>
+            <p className="mt-2 text-gray-600">
+              {searchQuery 
+                ? 'Browse the matching courses below'
+                : 'Expand your knowledge with our curated courses'}
+            </p>
           </div>
           <div className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-lg">
             <BadgeCheck className="h-5 w-5" />
@@ -136,7 +151,7 @@ const Courses: React.FC = () => {
             <CourseFilters filters={filters} onFilterChange={setFilters} />
           </aside>
           <main className="flex-1">
-            <CourseGrid filters={filters} />
+            <CourseGrid filters={filters} searchQuery={searchQuery} />
           </main>
         </div>
       </div>

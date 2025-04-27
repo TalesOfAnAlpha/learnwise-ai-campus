@@ -16,6 +16,8 @@ import About from "./pages/About";
 import CourseUpload from "./pages/CourseUpload";
 import TestMonitoring from "./pages/TestMonitoring";
 import Profile from "./pages/Profile";
+import InstructorDashboard from "./pages/InstructorDashboard";
+import ChatWidget from "./components/ChatWidget";
 
 const queryClient = new QueryClient();
 
@@ -37,9 +39,10 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/profile" element={<Profile />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/instructor-dashboard" element={<InstructorDashboard />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <ChatWidget />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

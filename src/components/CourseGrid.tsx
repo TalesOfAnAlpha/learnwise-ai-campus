@@ -21,9 +21,10 @@ interface Course {
 
 interface CourseGridProps {
   filters: CourseFilters;
+  searchQuery?: string;
 }
 
-const CourseGrid: React.FC<CourseGridProps> = ({ filters }) => {
+const CourseGrid: React.FC<CourseGridProps> = ({ filters, searchQuery = '' }) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -37,6 +38,11 @@ const CourseGrid: React.FC<CourseGridProps> = ({ filters }) => {
         let query = supabase
           .from('courses')
           .select('*');
+        
+        // Apply search query if provided
+        if (searchQuery && searchQuery.trim() !== '') {
+          query = query.ilike('title', `%${searchQuery}%`);
+        }
         
         // Apply filters
         if (filters.category !== 'all') {
@@ -55,6 +61,12 @@ const CourseGrid: React.FC<CourseGridProps> = ({ filters }) => {
         
         if (filters.rating > 0) {
           query = query.gte('rating', filters.rating);
+        }
+        
+        // If AI recommended is enabled, filter for featured courses (assuming these are AI-recommended)
+        if (filters.aiRecommended) {
+          // In a real app, this might use a 'featured' or 'ai_recommended' column
+          query = query.gte('rating', 4.7);
         }
         
         // Execute the query
@@ -162,7 +174,7 @@ const CourseGrid: React.FC<CourseGridProps> = ({ filters }) => {
     };
 
     fetchCourses();
-  }, [filters, toast]);
+  }, [filters, searchQuery, toast]);
 
   if (loading) {
     return (
@@ -198,6 +210,7 @@ const CourseGrid: React.FC<CourseGridProps> = ({ filters }) => {
           price={course.price}
           duration={course.duration}
           level={course.level as 'Beginner' | 'Intermediate' | 'Advanced'}
+          aiRecommended={course.rating >= 4.7}
         />
       ))}
     </div>
