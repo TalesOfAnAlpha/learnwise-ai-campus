@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Search, Upload, Eye } from 'lucide-react';
 import UserMenu from './UserMenu';
 import Logo from './Logo';
+import { useAuth } from '@/context/AuthContext';
 
 const Navbar: React.FC = () => {
-  const isLoggedIn = false; // This would be from auth context in a real app
+  const { user, loading } = useAuth();
+  const isLoggedIn = !!user;
 
   return (
     <nav className="w-full py-4 px-6 md:px-8 bg-white shadow-sm border-b">
@@ -48,18 +50,18 @@ const Navbar: React.FC = () => {
             />
           </div>
           
-          {isLoggedIn ? (
+          {!loading && (isLoggedIn ? (
             <UserMenu />
           ) : (
             <div className="flex gap-3">
-              <Link to="/login">
+              <Link to="/auth">
                 <Button variant="outline">Log in</Button>
               </Link>
-              <Link to="/signup">
+              <Link to="/auth">
                 <Button className="bg-brand-600 hover:bg-brand-700">Sign up</Button>
               </Link>
             </div>
-          )}
+          ))}
         </div>
       </div>
     </nav>
