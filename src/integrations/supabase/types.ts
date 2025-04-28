@@ -51,6 +51,13 @@ export type Database = {
             referencedRelation: "courses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "course_content_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_dashboard"
+            referencedColumns: ["course_id"]
+          },
         ]
       }
       courses: {
@@ -164,6 +171,13 @@ export type Database = {
             referencedRelation: "courses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_enrollments_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_dashboard"
+            referencedColumns: ["course_id"]
+          },
         ]
       }
       user_progress: {
@@ -212,11 +226,31 @@ export type Database = {
             referencedRelation: "courses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_progress_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_dashboard"
+            referencedColumns: ["course_id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      instructor_dashboard: {
+        Row: {
+          completed_enrollments: number | null
+          course_created_at: string | null
+          course_id: string | null
+          course_title: string | null
+          instructor_id: string | null
+          rating: number | null
+          reviews: number | null
+          total_earnings: number | null
+          total_enrollments: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

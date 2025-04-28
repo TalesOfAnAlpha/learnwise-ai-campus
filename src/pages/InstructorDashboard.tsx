@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,7 +66,7 @@ const InstructorDashboard: React.FC = () => {
       try {
         setLoading(true);
         
-        // Fetch instructor courses with stats from the dashboard view
+        // Fetch instructor courses with stats from the updated dashboard view
         const { data: instructorCourses, error } = await supabase
           .from('instructor_dashboard')
           .select('*')
