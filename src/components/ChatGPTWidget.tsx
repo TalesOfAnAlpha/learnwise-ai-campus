@@ -58,48 +58,32 @@ const ChatGPTWidget: React.FC = () => {
     setIsLoading(true);
     
     try {
-      // Use the OpenAI API for chat completions through a proxy or directly
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY || ''}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an AI learning assistant for an online education platform. You help users with their course material, answer questions about programming, provide explanations on various topics covered in courses, and offer learning tips. Keep responses concise and focused on educational content.'
-            },
-            ...messages.map(msg => ({ role: msg.role, content: msg.content })),
-            { role: 'user', content: inputValue }
-          ],
-          max_tokens: 1000
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to get response from AI assistant');
-      }
-      
-      const data = await response.json();
-      const aiResponse = data.choices[0].message.content;
-      
+      // Simple mock response for demo purposes
+      // In a real app, you would connect to OpenAI API through a backend service
       setTimeout(() => {
+        const responses = [
+          "That's a great question! Based on your course materials, I'd recommend focusing on these key concepts...",
+          "I can help you understand that concept. Let's break it down step by step...",
+          "Here are some resources that might help you with this topic...",
+          "That's a common challenge many students face. Here's what I suggest...",
+          "Based on your question, I think you should review the section on this topic in your course materials."
+        ];
+        
+        const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+        
         setMessages(prev => [
           ...prev, 
           {
             role: 'assistant',
-            content: aiResponse,
+            content: randomResponse,
             timestamp: new Date()
           }
         ]);
         setIsLoading(false);
-      }, 500); // Small delay to make it feel more natural
+      }, 1000);
       
     } catch (error) {
-      console.error('Error sending message to OpenAI:', error);
+      console.error('Error sending message:', error);
       
       // Fallback response if API fails
       setTimeout(() => {

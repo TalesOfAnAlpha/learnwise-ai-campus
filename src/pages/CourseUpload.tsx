@@ -43,6 +43,8 @@ const categories = [
 
 const levels = ['Beginner', 'Intermediate', 'Advanced'];
 
+// at the top of the file, update the form schema to include the videoUrl field
+
 const formSchema = z.object({
   title: z.string().min(10, {
     message: 'Title must be at least 10 characters.',
@@ -64,7 +66,10 @@ const formSchema = z.object({
   }),
   coverImage: z.instanceof(File).optional(),
   courseVideo: z.instanceof(File).optional(),
+  videoUrl: z.string().optional(),
 });
+
+// Keep the rest of the file as is...
 
 type FormValues = z.infer<typeof formSchema>;
 type CourseInsert = Database['public']['Tables']['student_courses']['Insert'];
@@ -129,46 +134,75 @@ const CourseUpload: React.FC = () => {
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${userId}/${fileName}`;
         
-        const { error: uploadError, data } = await supabase.storage
-          .from('course-thumbnails')
-          .upload(filePath, values.coverImage);
+        try {
+          const { error: uploadError, data } = await supabase.storage
+            .from('course-thumbnails')
+            .upload(filePath, values.coverImage);
 
-        if (uploadError) {
-          console.error('Cover image upload error:', uploadError);
-          throw new Error(`Cover image upload failed: ${uploadError.message}`);
-        }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('course-thumbnails')
-          .getPublicUrl(filePath);
+          if (uploadError) {
+            console.error('Cover image upload error:', uploadError);
+            throw new Error(`Cover image upload failed: ${uploadError.message}`);
+          }
           
-        thumbnailUrl = publicUrl;
+          const { data: { publicUrl } } = supabase.storage
+            .from('course-thumbnails')
+            .getPublicUrl(filePath);
+            
+          thumbnailUrl = publicUrl;
+          
+          console.log("Cover image uploaded successfully:", thumbnailUrl);
+        } catch (error) {
+          console.error("Error uploading cover image:", error);
+          toast({
+            title: 'Cover Image Upload Failed',
+            description: 'There was an error uploading your cover image. Please try again.',
+            variant: 'destructive',
+          });
+          // Continue with course creation even if image upload fails
+        }
       }
       
-      // Upload course video if provided
+      // Upload course video if provided or store video URL
       let videoUrl = null;
       if (values.courseVideo) {
         const fileExt = values.courseVideo.name.split('.').pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
         const filePath = `${userId}/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage
-          .from('course-videos')
-          .upload(filePath, values.courseVideo, {
-            cacheControl: '3600',
-            upsert: false
-          });
+        try {
+          const { error: uploadError } = await supabase.storage
+            .from('course-videos')
+            .upload(filePath, values.courseVideo, {
+              cacheControl: '3600',
+              upsert: false
+            });
 
-        if (uploadError) {
-          console.error('Video upload error:', uploadError);
-          throw new Error(`Video upload failed: ${uploadError.message}`);
-        }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('course-videos')
-          .getPublicUrl(filePath);
+          if (uploadError) {
+            console.error('Video upload error:', uploadError);
+            throw new Error(`Video upload failed: ${uploadError.message}`);
+          }
           
-        videoUrl = publicUrl;
+          const { data: { publicUrl } } = supabase.storage
+            .from('course-videos')
+            .getPublicUrl(filePath);
+            
+          videoUrl = publicUrl;
+          
+          console.log("Video uploaded successfully:", videoUrl);
+        } catch (error) {
+          console.error("Error uploading video:", error);
+          toast({
+            title: 'Video Upload Failed',
+            description: 'There was an error uploading your video. Please try again.',
+            variant: 'destructive',
+          });
+          // Continue with course creation even if video upload fails
+        }
+      }
+      
+      // Alternatively, if a video URL is provided directly (e.g., Google Drive link)
+      if (values.videoUrl && !videoUrl) {
+        videoUrl = values.videoUrl;
       }
 
       // Insert course into database
@@ -387,6 +421,23 @@ const CourseUpload: React.FC = () => {
                       </label>
                     </div>
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="videoUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Video URL (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://drive.google.com/file/d/..." {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          Alternatively, provide a Google Drive or other video link.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <div className="space-y-6">

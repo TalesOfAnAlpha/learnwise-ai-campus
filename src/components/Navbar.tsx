@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/navigation-menu';
 import UserMenu from './UserMenu';
 import { useAuth } from '@/context/AuthContext';
-import { User, Menu, X, BookOpen, Layout } from 'lucide-react';
+import { User, Menu, X, BookOpen, Layout, Users, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
@@ -123,6 +123,15 @@ const Navbar: React.FC = () => {
                 Categories
               </Link>
               <Link
+                to="/community"
+                className={`p-2 rounded-md ${
+                  isActiveRoute('/community') ? 'bg-gray-100 font-medium' : ''
+                }`}
+                onClick={closeMenu}
+              >
+                Community
+              </Link>
+              <Link
                 to="/about"
                 className={`p-2 rounded-md ${
                   isActiveRoute('/about') ? 'bg-gray-100 font-medium' : ''
@@ -142,6 +151,16 @@ const Navbar: React.FC = () => {
                   >
                     <Layout className="w-4 h-4 mr-2" />
                     Instructor Dashboard
+                  </Link>
+                  <Link
+                    to="/test-monitoring"
+                    className={`p-2 rounded-md flex items-center ${
+                      isActiveRoute('/test-monitoring') ? 'bg-gray-100 font-medium' : ''
+                    }`}
+                    onClick={closeMenu}
+                  >
+                    <BookOpen className="w-4 h-4 mr-2" />
+                    Test Monitoring
                   </Link>
                   <Link
                     to="/profile"
@@ -231,6 +250,17 @@ const Navbar: React.FC = () => {
                 <NavigationMenuLink
                   className={cn(
                     navigationMenuTriggerStyle(),
+                    isActiveRoute('/community') && 'bg-gray-100/50'
+                  )}
+                  asChild
+                >
+                  <Link to="/community">Community</Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+              <NavigationMenuItem>
+                <NavigationMenuLink
+                  className={cn(
+                    navigationMenuTriggerStyle(),
                     isActiveRoute('/about') && 'bg-gray-100/50'
                   )}
                   asChild
@@ -251,6 +281,14 @@ const Navbar: React.FC = () => {
                 <Button variant="outline" className="hidden md:flex">
                   <Layout className="w-4 h-4 mr-2" />
                   Instructor Dashboard
+                </Button>
+              </Link>
+              
+              {/* Test Monitoring link */}
+              <Link to="/test-monitoring">
+                <Button variant="outline" className="hidden md:flex">
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Test Monitoring
                 </Button>
               </Link>
               

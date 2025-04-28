@@ -20,6 +20,7 @@ import InstructorDashboard from "./pages/InstructorDashboard";
 import ChatGPTWidget from "./components/ChatGPTWidget";
 import CourseDetail from "./pages/CourseDetail";
 import AdminDashboard from "./pages/AdminDashboard";
+import Community from "./pages/Community";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/categories" element={<Categories />} />
+            <Route path="/community" element={<Community />} />
             <Route path="/about" element={<About />} />
             <Route path="/course-upload" element={<CourseUpload />} />
             <Route path="/test-monitoring" element={<TestMonitoring />} />

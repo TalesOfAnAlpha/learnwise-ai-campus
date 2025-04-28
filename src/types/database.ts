@@ -31,6 +31,7 @@ export interface Database {
           duration: string | null
           order_index: number
           created_at: string
+          video_url: string | null
         }
       }
       quizzes: {
@@ -53,6 +54,34 @@ export interface Database {
           order_index: number
         }
       }
+      instructor_dashboard: {
+        Row: {
+          course_id: string
+          course_title: string
+          course_created_at: string
+          total_enrollments: number
+          completed_enrollments: number
+          total_earnings: number
+          rating: number
+          reviews: number
+        }
+      }
     }
   }
 }
+
+export type CourseForAdmin = {
+  id: string;
+  title: string;
+  description: string;
+  instructor_id: string;
+  category: string;
+  level: string;
+  price: number;
+  rating: number;
+  reviews: number;
+  duration: string;
+  created_at: string;
+  thumbnail_url: string | null;
+  instructor_email?: string;
+};
