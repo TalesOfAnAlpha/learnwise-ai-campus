@@ -1,9 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import Layout from '@/components/Layout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 
 // Define a function to handle course enrollment with payment
 export const handleEnrollCourse = async (courseId: string, price: number, userId: string | undefined, navigate: any) => {
@@ -130,8 +134,126 @@ export const EnrollButton = ({
   );
 };
 
-// This is just a stub to help TypeScript resolve the import in the above component
-// The actual import should come from react-router-dom in the CourseDetail.tsx file
-const useNavigate = () => {
-  return (path: string) => {};
+// Define the main CourseDetail component
+const CourseDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const [course, setCourse] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEnrollingLoading, setIsEnrollingLoading] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchCourseDetails = async () => {
+      if (!id) return;
+      
+      try {
+        // Fetch course details
+        const { data, error } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (error) throw error;
+        
+        setCourse(data);
+        
+        // Check if user is enrolled
+        if (user) {
+          const { data: enrollmentData, error: enrollmentError } = await supabase
+            .from('user_enrollments')
+            .select()
+            .eq('user_id', user.id)
+            .eq('course_id', id)
+            .single();
+            
+          if (!enrollmentError) {
+            setIsEnrolled(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching course details:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchCourseDetails();
+  }, [id, user]);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!course) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <h1 className="text-2xl font-bold mb-4">Course not found</h1>
+          <Button onClick={() => navigate('/courses')}>Back to Courses</Button>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-2xl">{course.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-medium">Description</h3>
+                <p className="text-gray-600">{course.description}</p>
+              </div>
+              
+              <div className="flex flex-wrap gap-4">
+                <div>
+                  <h3 className="font-medium">Instructor</h3>
+                  <p className="text-gray-600">{course.instructor_name || 'Unknown Instructor'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium">Price</h3>
+                  <p className="text-gray-600">{course.price ? `$${course.price}` : 'Free'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium">Duration</h3>
+                  <p className="text-gray-600">{course.duration || 'Not specified'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium">Category</h3>
+                  <p className="text-gray-600">{course.category || 'Uncategorized'}</p>
+                </div>
+              </div>
+              
+              <div className="pt-4">
+                <EnrollButton 
+                  course={course} 
+                  isEnrolled={isEnrolled}
+                  isLoading={isEnrollingLoading}
+                  setIsLoading={setIsEnrollingLoading}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
 };
+
+export default CourseDetail;
