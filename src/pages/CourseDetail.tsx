@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import Layout from '../components/Layout';
-import { Loader2, Play, BookOpen, Clock, Star, CheckCircle, LockClosed } from 'lucide-react';
+import { Loader2, Play, BookOpen, Clock, Star, CheckCircle, Lock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
 interface CourseContent {
@@ -282,7 +281,7 @@ const CourseDetail: React.FC = () => {
                           {isEnrolled ? (
                             <Play className="h-5 w-5 mr-3 text-brand-600" />
                           ) : (
-                            <LockClosed className="h-5 w-5 mr-3 text-gray-400" />
+                            <Lock className="h-5 w-5 mr-3 text-gray-400" />
                           )}
                           <div>
                             <h3 className="font-medium">{item.title}</h3>
