@@ -1,10 +1,20 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const Hero: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/courses?search=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
   return (
     <div className="bg-gradient-to-r from-brand-50 to-blue-50 py-16 md:py-24">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
@@ -18,19 +28,22 @@ const Hero: React.FC = () => {
               Discover personalized learning paths, get AI-powered answers to your questions, 
               and master new skills with adaptive courses tailored to your needs.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="What do you want to learn today?"
                   className="pl-10 h-12 w-full sm:w-80 rounded-md border border-gray-200 bg-white px-3 py-2 text-md ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Button className="h-12 bg-brand-600 hover:bg-brand-700 text-md px-6">
+              <Button type="submit" className="h-12 bg-brand-600 hover:bg-brand-700 text-md px-6">
                 Find Courses
               </Button>
-            </div>
+            </form>
+            
             <div className="mt-8 flex gap-8 text-sm text-gray-500 justify-center md:justify-start">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-full bg-brand-100 flex items-center justify-center">

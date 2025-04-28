@@ -21,6 +21,7 @@ import ChatGPTWidget from "./components/ChatGPTWidget";
 import CourseDetail from "./pages/CourseDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import Community from "./pages/Community";
+import Payment from "./pages/Payment";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/instructor-dashboard" element={<InstructorDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/payment" element={<Payment />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <ChatGPTWidget />

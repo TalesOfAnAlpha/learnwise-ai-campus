@@ -1,264 +1,408 @@
-
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { Webcam } from '@/components/Webcam';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Camera, Clock, Eye, Loader2, Mic, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Camera, Mic, MicOff, Video, VideoOff, Eye, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import TestMonitoringCamera from '../components/TestMonitoringCamera';
-import TestMonitoringAudio from '../components/TestMonitoringAudio';
-import AIMonitoringSummary from '../components/AIMonitoringSummary';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+
+export function useTabVisibility() {
+  const [isVisible, setIsVisible] = useState(true);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [lastSwitchTime, setLastSwitchTime] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const visible = document.visibilityState === 'visible';
+      
+      if (!visible) {
+        // Tab was hidden / user switched tabs
+        setTabSwitchCount(prev => prev + 1);
+        setLastSwitchTime(new Date());
+        
+        console.log('Tab switching detected!', {
+          time: new Date().toISOString(),
+          switchCount: tabSwitchCount + 1
+        });
+      }
+      
+      setIsVisible(visible);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Important: Create an interval that detects window focus changes
+    const focusInterval = setInterval(() => {
+      if (document.hasFocus() !== isVisible) {
+        handleVisibilityChange();
+      }
+    }, 1000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(focusInterval);
+    };
+  }, [isVisible, tabSwitchCount]);
+
+  return {
+    isVisible,
+    tabSwitchCount,
+    lastSwitchTime
+  };
+}
 
 const TestMonitoring: React.FC = () => {
-  const [isMonitoring, setIsMonitoring] = useState(false);
-  const [cameraEnabled, setCameraEnabled] = useState(false);
-  const [audioEnabled, setAudioEnabled] = useState(false);
-  const [detections, setDetections] = useState<string[]>([]);
-  const [tabSwitchAttempts, setTabSwitchAttempts] = useState<string[]>([]);
-  const [isWarningDialogOpen, setIsWarningDialogOpen] = useState(false);
-  const originalTitle = useRef(document.title);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [micEnabled, setMicEnabled] = useState(false);
+  const [testStarted, setTestStarted] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(3600); // 1 hour in seconds
+  const [loading, setLoading] = useState(false);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [faceCount, setFaceCount] = useState(0);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const { isVisible, tabSwitchCount, lastSwitchTime } = useTabVisibility();
 
-  // Monitor tab focus/visibility
   useEffect(() => {
-    if (isMonitoring) {
-      const handleVisibilityChange = () => {
-        if (document.visibilityState === 'hidden') {
-          const timestamp = new Date().toISOString();
-          setTabSwitchAttempts(prev => [...prev, timestamp]);
-          setDetections(prev => [...prev, `Tab switch detected at ${new Date().toLocaleTimeString()}`]);
-          setIsWarningDialogOpen(true);
-          
-          // Flash the title to get attention
-          let titleFlash = setInterval(() => {
-            document.title = document.title === "⚠️ RETURN TO TEST" 
-              ? "⚠️ MONITORING ACTIVE" 
-              : "⚠️ RETURN TO TEST";
-          }, 1000);
-          
-          // Clear interval when tab is visible again
-          const clearTitleFlash = () => {
-            if (document.visibilityState === 'visible') {
-              clearInterval(titleFlash);
-              document.title = originalTitle.current;
-              document.removeEventListener('visibilitychange', clearTitleFlash);
-            }
-          };
-          
-          document.addEventListener('visibilitychange', clearTitleFlash);
-          
-          toast({
-            title: "Warning",
-            description: "Tab switching detected! This has been recorded.",
-            variant: "destructive",
-          });
-        }
-      };
-      
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      
-      // Warn before closing/refreshing
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        e.preventDefault();
-        e.returnValue = '';
-        return '';
-      };
-      
-      window.addEventListener('beforeunload', handleBeforeUnload);
-      
-      return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        window.removeEventListener('beforeunload', handleBeforeUnload);
-        document.title = originalTitle.current;
-      };
+    if (!user) {
+      navigate('/auth');
     }
-  }, [isMonitoring, toast]);
+  }, [user, navigate]);
 
-  const startMonitoring = () => {
-    if (!cameraEnabled && !audioEnabled) {
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (testStarted && timeRemaining > 0) {
+      timer = setInterval(() => {
+        setTimeRemaining(prev => prev - 1);
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [testStarted, timeRemaining]);
+
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartTest = async () => {
+    if (!cameraEnabled || !micEnabled) {
       toast({
-        title: "Error",
-        description: "Please enable at least one monitoring method",
-        variant: "destructive"
+        title: "Cannot start test",
+        description: "Camera and microphone access are required",
+        variant: "destructive",
       });
       return;
     }
     
-    setIsMonitoring(true);
-    setDetections([]);
-    setTabSwitchAttempts([]);
-    toast({
-      title: "Monitoring Started",
-      description: "AI test monitoring is now active"
-    });
+    setLoading(true);
+    
+    try {
+      // Simulate API call to start test
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setTestStarted(true);
+      toast({
+        title: "Test started",
+        description: "Your test session has begun. Good luck!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to start test. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const stopMonitoring = () => {
-    setIsMonitoring(false);
-    toast({
-      title: "Monitoring Stopped",
-      description: "AI test monitoring has been deactivated"
-    });
+  const handleEndTest = async () => {
+    setLoading(true);
+    
+    try {
+      // Simulate API call to submit test
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      toast({
+        title: "Test submitted",
+        description: "Your test has been submitted successfully.",
+      });
+      
+      // Navigate to results page (would be implemented in a real app)
+      navigate('/courses');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit test. Please try again.",
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
   };
 
-  const handleDetection = (detection: string) => {
-    setDetections(prev => [...prev, detection]);
-    toast({
-      title: "Activity Detected",
-      description: detection,
-      variant: "destructive"
-    });
+  const handleFaceDetection = (detected: boolean, count: number) => {
+    setFaceDetected(detected);
+    setFaceCount(count);
+    
+    if (testStarted) {
+      if (count === 0) {
+        if (!warnings.includes("No face detected")) {
+          setWarnings(prev => [...prev, "No face detected"]);
+        }
+      } else if (count > 1) {
+        if (!warnings.includes("Multiple faces detected")) {
+          setWarnings(prev => [...prev, "Multiple faces detected"]);
+        }
+      }
+    }
+  };
+
+  const requestCameraAccess = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ video: true });
+      setCameraEnabled(true);
+    } catch (error) {
+      toast({
+        title: "Camera access denied",
+        description: "Please enable camera access to continue",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const requestMicAccess = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicEnabled(true);
+    } catch (error) {
+      toast({
+        title: "Microphone access denied",
+        description: "Please enable microphone access to continue",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-6 md:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Test Monitoring</h1>
-          <p className="mt-2 text-gray-600">AI-powered monitoring for online tests and exams</p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="md:col-span-2">
-            <Card className="mb-6">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Live Monitoring Feed</CardTitle>
-                  <Badge variant={isMonitoring ? "destructive" : "outline"}>
-                    {isMonitoring ? "Monitoring Active" : "Inactive"}
-                  </Badge>
-                </div>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Exam Monitoring System</CardTitle>
                 <CardDescription>
-                  AI-powered proctoring ensures academic integrity
+                  {testStarted 
+                    ? "Your exam is in progress. Please remain visible in the camera."
+                    : "Complete the setup to begin your exam"}
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {cameraEnabled ? (
-                  <TestMonitoringCamera
-                    isActive={isMonitoring}
-                    onDetection={handleDetection}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center justify-center h-64 bg-gray-100 rounded-md">
-                    <VideoOff className="h-12 w-12 text-gray-400 mb-2" />
-                    <p className="text-gray-500">Camera is disabled</p>
+              </div>
+              {testStarted && (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  <span className="font-mono font-medium">{formatTime(timeRemaining)}</span>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {testStarted ? (
+              <div className="space-y-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Webcam onFaceDetection={handleFaceDetection} />
+                      <div className="absolute top-2 right-2">
+                        <Badge variant={faceDetected ? "success" : "destructive"}>
+                          {faceDetected ? `Face Detected (${faceCount})` : "No Face Detected"}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <h3 className="font-medium mb-2">Exam Progress</h3>
+                      <Progress value={25} className="h-2" />
+                      <div className="flex justify-between mt-1 text-sm text-gray-500">
+                        <span>Question 5 of 20</span>
+                        <span>25% Complete</span>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="font-medium mb-2">Monitoring Status</h3>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Camera className="h-4 w-4 text-gray-500" />
+                            <span>Camera</span>
+                          </div>
+                          <Badge variant={cameraEnabled ? "outline" : "destructive"}>
+                            {cameraEnabled ? "Active" : "Disabled"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Mic className="h-4 w-4 text-gray-500" />
+                            <span>Microphone</span>
+                          </div>
+                          <Badge variant={micEnabled ? "outline" : "destructive"}>
+                            {micEnabled ? "Active" : "Disabled"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Eye className="h-4 w-4 text-gray-500" />
+                            <span>Tab Focus</span>
+                          </div>
+                          <Badge variant={isVisible ? "outline" : "destructive"}>
+                            {isVisible ? "In Focus" : "Out of Focus"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {warnings.length > 0 && (
+                      <div>
+                        <h3 className="font-medium mb-2 text-red-600">Warnings</h3>
+                        <div className="space-y-2">
+                          {warnings.map((warning, index) => (
+                            <div key={index} className="flex items-center justify-between bg-red-50 p-2 rounded-md">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-red-600" />
+                                <span className="text-red-600">{warning}</span>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => setWarnings(prev => prev.filter((_, i) => i !== index))}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {tabSwitchCount > 0 && (
+                  <Alert variant="destructive" className="mt-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Tab switching detected!</AlertTitle>
+                    <AlertDescription>
+                      You've switched tabs {tabSwitchCount} times. This may be flagged as suspicious activity.
+                      {lastSwitchTime && ` Last switch at ${lastSwitchTime.toLocaleTimeString()}.`}
+                    </AlertDescription>
+                  </Alert>
                 )}
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <div className="flex gap-2">
+                
+                <div className="flex justify-end">
                   <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setCameraEnabled(!cameraEnabled)}
-                    className={cameraEnabled ? "bg-green-50 text-green-700" : ""}
+                    onClick={handleEndTest} 
+                    disabled={loading}
                   >
-                    {cameraEnabled ? <Camera className="h-4 w-4 mr-2" /> : <VideoOff className="h-4 w-4 mr-2" />}
-                    {cameraEnabled ? "Camera On" : "Enable Camera"}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setAudioEnabled(!audioEnabled)}
-                    className={audioEnabled ? "bg-green-50 text-green-700" : ""}
-                  >
-                    {audioEnabled ? <Mic className="h-4 w-4 mr-2" /> : <MicOff className="h-4 w-4 mr-2" />}
-                    {audioEnabled ? "Audio On" : "Enable Audio"}
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      'End & Submit Test'
+                    )}
                   </Button>
                 </div>
-                <Button 
-                  onClick={isMonitoring ? stopMonitoring : startMonitoring}
-                  variant={isMonitoring ? "destructive" : "default"}
-                >
-                  {isMonitoring ? "Stop Monitoring" : "Start Monitoring"}
-                </Button>
-              </CardFooter>
-            </Card>
-
-            {audioEnabled && (
-              <TestMonitoringAudio 
-                isActive={isMonitoring} 
-                onDetection={handleDetection} 
-              />
-            )}
-            
-            {tabSwitchAttempts.length > 0 && (
-              <Card className="mb-6 border-red-200 bg-red-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-red-700">
-                    <AlertTriangle className="h-5 w-5 mr-2" />
-                    Tab Switch Attempts
-                  </CardTitle>
-                  <CardDescription className="text-red-600">
-                    {tabSwitchAttempts.length} attempt{tabSwitchAttempts.length !== 1 ? 's' : ''} to leave the test page detected
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-1 text-red-700">
-                    {tabSwitchAttempts.map((timestamp, index) => (
-                      <li key={index} className="flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-2" />
-                        Tab switch at {new Date(timestamp).toLocaleTimeString()}
-                      </li>
-                    ))}
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium">Exam Requirements</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-4 p-4 border rounded-md">
+                      <div className={`p-2 rounded-full ${cameraEnabled ? 'bg-green-100' : 'bg-gray-100'}`}>
+                        <Camera className={`h-5 w-5 ${cameraEnabled ? 'text-green-600' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium">Camera Access</p>
+                        <p className="text-sm text-gray-500">Required for identity verification</p>
+                      </div>
+                      <Button 
+                        variant={cameraEnabled ? "outline" : "default"} 
+                        size="sm" 
+                        className="ml-auto"
+                        onClick={requestCameraAccess}
+                        disabled={cameraEnabled}
+                      >
+                        {cameraEnabled ? 'Enabled' : 'Enable'}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 p-4 border rounded-md">
+                      <div className={`p-2 rounded-full ${micEnabled ? 'bg-green-100' : 'bg-gray-100'}`}>
+                        <Mic className={`h-5 w-5 ${micEnabled ? 'text-green-600' : 'text-gray-500'}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium">Microphone Access</p>
+                        <p className="text-sm text-gray-500">Required for audio monitoring</p>
+                      </div>
+                      <Button 
+                        variant={micEnabled ? "outline" : "default"} 
+                        size="sm" 
+                        className="ml-auto"
+                        onClick={requestMicAccess}
+                        disabled={micEnabled}
+                      >
+                        {micEnabled ? 'Enabled' : 'Enable'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="font-medium">Exam Rules</h3>
+                  <ul className="list-disc pl-5 space-y-2">
+                    <li>You must remain visible in the camera at all times</li>
+                    <li>No other person should be visible in the frame</li>
+                    <li>Do not switch to other tabs or applications</li>
+                    <li>No talking or playing music in the background</li>
+                    <li>Your face should be well-lit and clearly visible</li>
                   </ul>
-                </CardContent>
-              </Card>
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleStartTest} 
+                    disabled={!cameraEnabled || !micEnabled || loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      'Start Test'
+                    )}
+                  </Button>
+                </div>
+              </div>
             )}
-          </div>
-
-          <div>
-            <AIMonitoringSummary 
-              detections={[...detections, ...tabSwitchAttempts.map(time => 
-                `Tab switch at ${new Date(time).toLocaleTimeString()}`
-              )]} 
-              isActive={isMonitoring} 
-            />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
-      
-      {/* Warning Dialog for Tab Switching */}
-      <Dialog 
-        open={isWarningDialogOpen} 
-        onOpenChange={(open) => {
-          // Only allow closing if we're back in the tab
-          if (document.visibilityState === 'visible') {
-            setIsWarningDialogOpen(open);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center text-red-600">
-              <AlertTriangle className="h-5 w-5 mr-2" /> 
-              Warning: Tab Switch Detected
-            </DialogTitle>
-            <DialogDescription className="text-red-600">
-              Leaving the test tab is not allowed during monitoring. This activity has been recorded.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="bg-red-50 p-4 rounded-md">
-            <p className="text-sm text-red-700">
-              Multiple instances of tab switching may result in test invalidation. 
-              Please remain on this tab until your test is complete.
-            </p>
-            <p className="mt-2 font-medium text-red-600">
-              Recorded tab switches: {tabSwitchAttempts.length}
-            </p>
-          </div>
-          <div className="flex justify-center">
-            <Button 
-              className="bg-red-600 hover:bg-red-700 mt-2"
-              onClick={() => setIsWarningDialogOpen(false)}
-            >
-              I Understand
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Layout>
   );
 };

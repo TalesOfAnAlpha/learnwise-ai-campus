@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -78,6 +77,13 @@ const AdminDashboard: React.FC = () => {
   const [courseSearchTerm, setCourseSearchTerm] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{type: 'user' | 'course', id: string, name: string} | null>(null);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalUsers: 0,
+    totalCourses: 0,
+    studentCreatedCourses: 0,
+    systemStatus: 'All Systems Normal',
+    statusColor: 'green'
+  });
   const { toast } = useToast();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -118,8 +124,7 @@ const AdminDashboard: React.FC = () => {
         }
 
         // Fetch data for admin dashboard
-        await fetchUsers();
-        await fetchCourses();
+        await Promise.all([fetchUsers(), fetchCourses()]);
         
       } catch (error) {
         console.error('Error checking admin status:', error);
@@ -138,17 +143,21 @@ const AdminDashboard: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      // Fetch users from auth.users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      console.log('Fetching users for admin dashboard...');
       
-      if (authError) throw authError;
-      
-      // Fetch user profiles for additional info
-      const { data: profiles, error: profileError } = await supabase
+      // Fetch users from auth.users directly using administrative functions
+      const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name');
+        .select('*');
       
-      if (profileError) throw profileError;
+      if (error) throw error;
+      
+      if (!data) {
+        console.log('No user data returned');
+        return;
+      }
+
+      console.log(`Retrieved ${data.length} users`);
       
       // Fetch enrollment data
       const { data: enrollments, error: enrollmentError } = await supabase
@@ -158,31 +167,32 @@ const AdminDashboard: React.FC = () => {
       if (enrollmentError) throw enrollmentError;
       
       // Process and combine data
-      const processedUsers = authUsers.users.map(authUser => {
-        const profile = profiles?.find(p => p.id === authUser.id);
-        const userEnrollments = enrollments?.filter(e => e.user_id === authUser.id) || [];
+      const processedUsers = data.map(profile => {
+        const userEnrollments = enrollments?.filter(e => e.user_id === profile.id) || [];
         
         // Calculate total spent (in a real app, this would come from orders/transactions)
         const totalSpent = userEnrollments.length * 49.99; // Mock price
         
         return {
-          id: authUser.id,
-          email: authUser.email || 'No Email',
-          first_name: profile?.first_name || null,
-          last_name: profile?.last_name || null,
-          created_at: authUser.created_at || '',
-          last_sign_in_at: authUser.last_sign_in_at || null,
+          id: profile.id,
+          email: profile.id, // We don't have emails in profiles table
+          first_name: profile.first_name || null,
+          last_name: profile.last_name || null,
+          created_at: profile.created_at || '',
+          last_sign_in_at: profile.updated_at || null,
           enrolled_courses: userEnrollments.length,
           total_spent: totalSpent
         };
       });
       
       setUsers(processedUsers);
-    } catch (error) {
+      setDashboardStats(prev => ({...prev, totalUsers: processedUsers.length}));
+      console.log('Users data processed successfully');
+    } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load user data',
+        description: 'Failed to load user data: ' + error.message,
         variant: 'destructive',
       });
     }
@@ -190,12 +200,21 @@ const AdminDashboard: React.FC = () => {
 
   const fetchCourses = async () => {
     try {
+      console.log('Fetching courses for admin dashboard...');
+      
       // Fetch courses
       const { data: coursesData, error: coursesError } = await supabase
         .from('courses')
         .select('*');
       
       if (coursesError) throw coursesError;
+
+      if (!coursesData) {
+        console.log('No course data returned');
+        return;
+      }
+
+      console.log(`Retrieved ${coursesData.length} courses`);
       
       // Fetch instructor profiles
       const { data: profiles, error: profileError } = await supabase
@@ -218,11 +237,17 @@ const AdminDashboard: React.FC = () => {
       });
       
       setCourses(processedCourses);
-    } catch (error) {
+      setDashboardStats(prev => ({
+        ...prev, 
+        totalCourses: processedCourses.length,
+        studentCreatedCourses: processedCourses.filter(c => c.is_student_created).length
+      }));
+      console.log('Courses data processed successfully');
+    } catch (error: any) {
       console.error('Error fetching courses:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load course data',
+        description: 'Failed to load course data: ' + error.message,
         variant: 'destructive',
       });
     }
@@ -329,23 +354,23 @@ const AdminDashboard: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-gray-500 text-sm mb-1">Total Users</div>
-                  <div className="text-2xl font-bold">{users.length}</div>
+                  <div className="text-2xl font-bold">{dashboardStats.totalUsers}</div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-gray-500 text-sm mb-1">Total Courses</div>
-                  <div className="text-2xl font-bold">{courses.length}</div>
+                  <div className="text-2xl font-bold">{dashboardStats.totalCourses}</div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-gray-500 text-sm mb-1">Student-Created Courses</div>
                   <div className="text-2xl font-bold">
-                    {courses.filter(c => c.is_student_created).length}
+                    {dashboardStats.studentCreatedCourses}
                   </div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-gray-500 text-sm mb-1">System Status</div>
                   <div className="flex items-center">
-                    <div className="h-3 w-3 bg-green-500 rounded-full mr-2"></div>
-                    <span className="font-medium">All Systems Normal</span>
+                    <div className={`h-3 w-3 bg-${dashboardStats.statusColor}-500 rounded-full mr-2`}></div>
+                    <span className="font-medium">{dashboardStats.systemStatus}</span>
                   </div>
                 </div>
               </div>
