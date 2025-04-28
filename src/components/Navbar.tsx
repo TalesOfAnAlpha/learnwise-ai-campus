@@ -16,12 +16,12 @@ import UserMenu from './UserMenu';
 import { useAuth } from '@/context/AuthContext';
 import { User, Menu, X, BookOpen, Layout } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 
 const Navbar: React.FC = () => {
   const { user } = useAuth();
-  const isMobile = useIsMobile();
+  const { isMobile } = useMobile();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -195,48 +195,52 @@ const Navbar: React.FC = () => {
           <NavigationMenu className="hidden md:block">
             <NavigationMenuList>
               <NavigationMenuItem>
-                <NavigationMenuLink
-                  asChild
-                  className={cn(
-                    navigationMenuTriggerStyle(),
-                    isActiveRoute('/') && 'bg-gray-100/50'
-                  )}
-                >
-                  <Link to="/">Home</Link>
-                </NavigationMenuLink>
+                <Link to="/" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/') && 'bg-gray-100/50'
+                    )}
+                  >
+                    Home
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink
-                  asChild
-                  className={cn(
-                    navigationMenuTriggerStyle(),
-                    isActiveRoute('/courses') && 'bg-gray-100/50'
-                  )}
-                >
-                  <Link to="/courses">Courses</Link>
-                </NavigationMenuLink>
+                <Link to="/courses" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/courses') && 'bg-gray-100/50'
+                    )}
+                  >
+                    Courses
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink
-                  asChild
-                  className={cn(
-                    navigationMenuTriggerStyle(),
-                    isActiveRoute('/categories') && 'bg-gray-100/50'
-                  )}
-                >
-                  <Link to="/categories">Categories</Link>
-                </NavigationMenuLink>
+                <Link to="/categories" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/categories') && 'bg-gray-100/50'
+                    )}
+                  >
+                    Categories
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
               <NavigationMenuItem>
-                <NavigationMenuLink
-                  asChild
-                  className={cn(
-                    navigationMenuTriggerStyle(),
-                    isActiveRoute('/about') && 'bg-gray-100/50'
-                  )}
-                >
-                  <Link to="/about">About</Link>
-                </NavigationMenuLink>
+                <Link to="/about" legacyBehavior passHref>
+                  <NavigationMenuLink
+                    className={cn(
+                      navigationMenuTriggerStyle(),
+                      isActiveRoute('/about') && 'bg-gray-100/50'
+                    )}
+                  >
+                    About
+                  </NavigationMenuLink>
+                </Link>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>

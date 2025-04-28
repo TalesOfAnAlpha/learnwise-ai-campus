@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, User, BookOpen, Users, Search, ChevronDown, ChevronUp, Edit, Trash, CheckCircle, XCircle, Star } from 'lucide-react';
+import { Loader2, User, BookOpen, Users, Search, ChevronDown, ChevronUp, Edit, Trash, CheckCircle, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -55,7 +55,6 @@ interface CourseForAdmin {
   instructor_name?: string;
   created_at: string;
   is_student_created: boolean;
-  thumbnail_url: string | null;
 }
 
 interface UserForAdmin {
