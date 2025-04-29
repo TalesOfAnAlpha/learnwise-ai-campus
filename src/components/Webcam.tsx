@@ -18,24 +18,38 @@ export const Webcam: React.FC<WebcamProps> = ({ onFaceDetection }) => {
     };
   }, []);
 
-  // Simulate basic face detection for demo purposes
+  // Enhanced face detection with more detailed simulations
   useEffect(() => {
     let detectionInterval: NodeJS.Timeout;
     
     if (isActive && onFaceDetection) {
       detectionInterval = setInterval(() => {
-        // Simulate face detection (70% chance of detecting a single face)
-        const random = Math.random();
-        if (random < 0.7) {
+        // Improved face detection simulation with more scenarios
+        const scenario = Math.random();
+        
+        // 60% chance of normal face detection (single face)
+        if (scenario < 0.6) {
           onFaceDetection(true, 1);
-        } else if (random < 0.85) {
-          // 15% chance of detecting no face
+        } 
+        // 15% chance of detecting no face
+        else if (scenario < 0.75) {
           onFaceDetection(false, 0);
-        } else {
-          // 15% chance of detecting multiple faces
-          onFaceDetection(true, 2);
+        } 
+        // 15% chance of detecting multiple faces
+        else if (scenario < 0.9) {
+          onFaceDetection(true, Math.floor(Math.random() * 2) + 2); // 2-3 faces
+        } 
+        // 5% chance of detecting a phone
+        else if (scenario < 0.95) {
+          onFaceDetection(true, 1); // Face is detected
+          // In a real implementation, we would have a separate callback for phone detection
+        } 
+        // 5% chance of looking away
+        else {
+          onFaceDetection(true, 1); // Face is detected but looking away
+          // In a real implementation, we would track face orientation
         }
-      }, 3000);
+      }, 2000); // More frequent checks
     }
     
     return () => {

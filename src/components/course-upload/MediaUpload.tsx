@@ -77,15 +77,6 @@ const MediaUpload: React.FC<MediaUploadProps> = ({
     }
   }, [setThumbnailUrl, setVideoUrl, setIsUploading, toast]);
 
-  const handleExternalVideo = (url: string) => {
-    // Accept YouTube, Google Drive, and other video URLs
-    setVideoUrl(url);
-    toast({
-      title: 'Video link added',
-      description: 'External video link has been added successfully.',
-    });
-  };
-
   return (
     <div className="space-y-6">
       {uploadError && (

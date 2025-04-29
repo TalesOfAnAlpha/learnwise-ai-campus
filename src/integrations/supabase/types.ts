@@ -75,6 +75,7 @@ export type Database = {
           reviews: number | null
           thumbnail_url: string | null
           title: string
+          video_url: string | null
         }
         Insert: {
           category: string
@@ -90,6 +91,7 @@ export type Database = {
           reviews?: number | null
           thumbnail_url?: string | null
           title: string
+          video_url?: string | null
         }
         Update: {
           category?: string
@@ -105,6 +107,7 @@ export type Database = {
           reviews?: number | null
           thumbnail_url?: string | null
           title?: string
+          video_url?: string | null
         }
         Relationships: []
       }

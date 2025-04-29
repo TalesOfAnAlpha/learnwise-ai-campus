@@ -1,16 +1,21 @@
 
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Webcam } from '@/components/Webcam';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Camera, Clock, Eye, Loader2, Mic, X } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+
+// Import refactored components
+import MonitoringHeader from '@/components/test-monitoring/MonitoringHeader';
+import MonitoringStatus from '@/components/test-monitoring/MonitoringStatus';
+import DetectionWarnings from '@/components/test-monitoring/DetectionWarnings';
+import ExamProgress from '@/components/test-monitoring/ExamProgress';
 
 export function useTabVisibility() {
   const [isVisible, setIsVisible] = useState(true);
@@ -70,6 +75,11 @@ const TestMonitoring: React.FC = () => {
   const [faceCount, setFaceCount] = useState(0);
   const [warnings, setWarnings] = useState<string[]>([]);
   const { isVisible, tabSwitchCount, lastSwitchTime } = useTabVisibility();
+  
+  // For exam progress
+  const [currentQuestion, setCurrentQuestion] = useState(5);
+  const [totalQuestions, setTotalQuestions] = useState(20);
+  const [progress, setProgress] = useState(25);
 
   useEffect(() => {
     if (!user) {
@@ -90,13 +100,6 @@ const TestMonitoring: React.FC = () => {
       if (timer) clearInterval(timer);
     };
   }, [testStarted, timeRemaining]);
-
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleStartTest = async () => {
     if (!cameraEnabled || !micEnabled) {
@@ -159,6 +162,7 @@ const TestMonitoring: React.FC = () => {
     setFaceCount(count);
     
     if (testStarted) {
+      // Enhanced detection logic with categorized warnings
       if (count === 0) {
         if (!warnings.includes("No face detected")) {
           setWarnings(prev => [...prev, "No face detected"]);
@@ -166,6 +170,25 @@ const TestMonitoring: React.FC = () => {
       } else if (count > 1) {
         if (!warnings.includes("Multiple faces detected")) {
           setWarnings(prev => [...prev, "Multiple faces detected"]);
+        }
+      }
+      
+      // Randomly simulate other detection scenarios
+      const detectionRandom = Math.random();
+      if (detectionRandom < 0.1) {
+        // 10% chance of simulated phone detection
+        if (!warnings.includes("Phone detected")) {
+          setWarnings(prev => [...prev, "Phone detected"]);
+        }
+      } else if (detectionRandom < 0.2) {
+        // 10% chance of looking away detection
+        if (!warnings.includes("Looking away from screen")) {
+          setWarnings(prev => [...prev, "Looking away from screen"]);
+        }
+      } else if (detectionRandom < 0.3) {
+        // 10% chance of audio warning
+        if (!warnings.includes("Background conversation detected")) {
+          setWarnings(prev => [...prev, "Background conversation detected"]);
         }
       }
     }
@@ -197,27 +220,19 @@ const TestMonitoring: React.FC = () => {
     }
   };
 
+  const handleDismissWarning = (index: number) => {
+    setWarnings(prev => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <Layout>
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Exam Monitoring System</CardTitle>
-                <CardDescription>
-                  {testStarted 
-                    ? "Your exam is in progress. Please remain visible in the camera."
-                    : "Complete the setup to begin your exam"}
-                </CardDescription>
-              </div>
-              {testStarted && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-500" />
-                  <span className="font-mono font-medium">{formatTime(timeRemaining)}</span>
-                </div>
-              )}
-            </div>
+            <MonitoringHeader 
+              testStarted={testStarted} 
+              timeRemaining={timeRemaining} 
+            />
           </CardHeader>
           <CardContent>
             {testStarted ? (
@@ -234,70 +249,22 @@ const TestMonitoring: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex-1 space-y-4">
-                    <div>
-                      <h3 className="font-medium mb-2">Exam Progress</h3>
-                      <Progress value={25} className="h-2" />
-                      <div className="flex justify-between mt-1 text-sm text-gray-500">
-                        <span>Question 5 of 20</span>
-                        <span>25% Complete</span>
-                      </div>
-                    </div>
+                    <ExamProgress 
+                      progress={progress} 
+                      currentQuestion={currentQuestion} 
+                      totalQuestions={totalQuestions} 
+                    />
                     
-                    <div>
-                      <h3 className="font-medium mb-2">Monitoring Status</h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Camera className="h-4 w-4 text-gray-500" />
-                            <span>Camera</span>
-                          </div>
-                          <Badge variant={cameraEnabled ? "outline" : "destructive"}>
-                            {cameraEnabled ? "Active" : "Disabled"}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Mic className="h-4 w-4 text-gray-500" />
-                            <span>Microphone</span>
-                          </div>
-                          <Badge variant={micEnabled ? "outline" : "destructive"}>
-                            {micEnabled ? "Active" : "Disabled"}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Eye className="h-4 w-4 text-gray-500" />
-                            <span>Tab Focus</span>
-                          </div>
-                          <Badge variant={isVisible ? "outline" : "destructive"}>
-                            {isVisible ? "In Focus" : "Out of Focus"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
+                    <MonitoringStatus 
+                      cameraEnabled={cameraEnabled}
+                      micEnabled={micEnabled}
+                      isVisible={isVisible}
+                    />
                     
-                    {warnings.length > 0 && (
-                      <div>
-                        <h3 className="font-medium mb-2 text-red-600">Warnings</h3>
-                        <div className="space-y-2">
-                          {warnings.map((warning, index) => (
-                            <div key={index} className="flex items-center justify-between bg-red-50 p-2 rounded-md">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle className="h-4 w-4 text-red-600" />
-                                <span className="text-red-600">{warning}</span>
-                              </div>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                onClick={() => setWarnings(prev => prev.filter((_, i) => i !== index))}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <DetectionWarnings 
+                      warnings={warnings}
+                      onDismissWarning={handleDismissWarning}
+                    />
                   </div>
                 </div>
                 

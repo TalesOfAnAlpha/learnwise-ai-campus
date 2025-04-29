@@ -40,6 +40,7 @@ const CourseUpload = () => {
 
     setIsSubmitting(true);
     try {
+      // Add course data to database
       const { data: course, error } = await supabase
         .from('courses')
         .insert({
@@ -48,15 +49,18 @@ const CourseUpload = () => {
           instructor_id: user.id,
           category,
           level,
-          price: parseFloat(price),
+          price: parseFloat(price) || 0,
           duration,
           thumbnail_url: thumbnailUrl,
-          video_url: videoUrl,
+          video_url: videoUrl, // Use the newly added video_url column
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error creating course:", error);
+        throw error;
+      }
 
       toast({
         title: "Success!",
