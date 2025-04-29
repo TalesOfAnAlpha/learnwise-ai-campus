@@ -2,8 +2,8 @@
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertCircle, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Camera } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Camera } from 'lucide-react';
 
 import { Webcam } from '@/components/Webcam';
 import ExamProgress from '@/components/test-monitoring/ExamProgress';
