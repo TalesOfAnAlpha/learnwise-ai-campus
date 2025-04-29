@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Webcam } from '@/components/Webcam';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Camera, Mic, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 // Import refactored components
